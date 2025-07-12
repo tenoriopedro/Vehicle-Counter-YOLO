@@ -34,6 +34,8 @@ python -m venv venv
 
 .\venv\Scripts\activate.ps1
 
+pip install -r requirements.txt
+
 ```
 
 ### 3. Run the main video processing script:
