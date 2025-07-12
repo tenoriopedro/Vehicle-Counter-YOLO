@@ -1,10 +1,14 @@
-## Se necessário mudar versão do torch e torchvision
+## If necessary, adjust torch and torchvision versions
 ## torch==2.3.1 torchvision==0.18.1
-
+import cv2
+import os
 from pathlib import Path
 from ultralytics import YOLO
 from ultralytics.solutions import object_counter
-import cv2
+
+# Create folders to store output files
+os.makedirs("compiled_files", exist_ok=True)
+os.makedirs("result_files", exist_ok=True)
 
 ROOT = Path(__file__).parent
 ROOT_FILE = ROOT / "test_files/track_video_car01.mp4"
@@ -14,17 +18,16 @@ cap = cv2.VideoCapture(str(ROOT_FILE))
 
 w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
 
-# classes que serão identificadas(COCO)
-class_to_count = [2, 3, 7] #(2: carro, 3:motocicleta, 7:caminhão)
+# Classes to be detected (COCO IDs)
+class_to_count = [2, 3, 7]  # (2: car, 3: motorcycle, 7: truck)
 class_names = {2: "Car", 3: "Motorcycle", 7: "Truck"}
 
-# linha tracker
+# Line coordinates for tracking
 line_points = [(20, 400), (1500, 400)]
 
 video_writer = cv2.VideoWriter("compiled_files\\object_counting_output.avi", cv2.VideoWriter_fourcc(*"XVID"), fps, (w, h))
 
-
-# Iniciar Object Counter
+# Initialize Object Counter
 counter = object_counter.ObjectCounter()
 counter.set_args(
     classes_names=model.names,
@@ -35,7 +38,7 @@ counter.set_args(
     view_out_counts=False,
 )
 
-# Dicionários para armazenar contagens por classe
+# Dictionaries to store counts per class and direction
 counts = {
     'right': {cls_id: 0 for cls_id in class_to_count},
     'left': {cls_id: 0 for cls_id in class_to_count}
@@ -55,18 +58,17 @@ while cap.isOpened():
     )
     im0 = counter.start_counting(im0, tracks)
 
-    # Guarda a quantidade de veiculos que passou na via
+    # Get the total number of vehicles passing through
     counter_vehicles = counter.in_counts + counter.out_counts
     total_vehicles = counter_vehicles
     
-    # Atualizar contagens por classe e direção (direita/esquerda)
-    # Com base nos dados retornados pelo ObjectCounter
+    # Update counts per class and direction based on ObjectCounter output
     for class_name, direction_counts in counter.class_wise_count.items():
-        # class_name é o nome da classe (ex: 'car), 
-        # direction_counts é um dicionário com 'IN' e 'OUT'
+        # class_name is the class label (e.g., 'car')
+        # direction_counts is a dictionary with 'IN' and 'OUT'
 
         for class_id, model_class_name in model.names.items():
-            # Percorre as classes do modelo para mapear nome -> id
+            # Map model class names to class IDs
 
             if class_name == model_class_name:
                 
@@ -77,17 +79,16 @@ while cap.isOpened():
                     elif direction == 'OUT':
                         counts['left'][class_id] = count
 
-
-    # Desenhar fundo semi-transparente para os textos
+    # Draw a semi-transparent background for the text
     overlay = im0.copy()
     cv2.rectangle(overlay, (10, 10), (500, 230), (0, 0, 0), -1)
     cv2.addWeighted(overlay, 0.6, im0, 0.4, 0, im0)
 
-    # Adicionar Titulo
+    # Add title
     cv2.putText(im0, "Traffic Counter", (20, 50), 
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-    #Adicionar contagens por classe
+    # Add class-specific counts
     y_offset = 90
     for cls_id in class_to_count:
 
@@ -98,16 +99,16 @@ while cap.isOpened():
         cv2.putText(im0, text, (20, y_offset),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-        y_offset += 40 # Espaçamento entre linhas
+        y_offset += 40  # Line spacing
 
-    # Mostra na tela a quantidade de veiculos que passa na via
+    # Display total vehicle count on screen
     total_vehicles_text = f"Total vehicles: {total_vehicles}"
     cv2.putText(im0, total_vehicles_text, (20, y_offset),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
     video_writer.write(im0)
 
-    if cv2.waitKey(1)&0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()

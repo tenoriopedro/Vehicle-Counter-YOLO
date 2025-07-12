@@ -12,9 +12,9 @@ COMPILED_FILES = ROOT / "compiled_files/object_counting_output.avi"
 VIDEO_RESULT = ROOT / "result_files"
 
 
-def exibir_video(video_caminho):
+def show_video(path_video):
 
-  mp4 = open(video_caminho, "rb").read()
+  mp4 = open(path_video, "rb").read()
   data_url = "data:video/mp4;base64," + b64encode(mp4).decode()
 
   return HTML("""
@@ -23,11 +23,11 @@ def exibir_video(video_caminho):
     </video>
     """ % data_url)
 
-video_salvo = str(COMPILED_FILES)
-video_final = str(VIDEO_RESULT / "video_countingCar_result01.mp4")
+save_video = str(COMPILED_FILES)
+final_video = str(VIDEO_RESULT / "video_countingCar_result01.mp4")
 
-clip = moviepy.VideoFileClip(video_salvo)
-clip.write_videofile(video_final)
+clip = moviepy.VideoFileClip(save_video)
+clip.write_videofile(final_video)
 
 
-exibir_video(video_final)
+show_video(final_video)
