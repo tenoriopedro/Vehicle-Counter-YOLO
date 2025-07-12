@@ -22,8 +22,8 @@ This allows you to test the system immediately without searching for external vi
 ### 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/traffic-flow-counter-yolov8.git
-cd traffic-flow-counter-yolov8
+git clone https://github.com/tenoriopedro/Vehicle-Counter-YOLO.git
+cd Vehicle-Counter-YOLO
 ```
 
 ### 2. Install dependencies (recommended to create and activate a virtual environment):
