@@ -93,8 +93,8 @@ while cap.isOpened():
     for cls_id in class_to_count:
 
         text = (f"{class_names[cls_id]} "
-        f"( Right: {counts['right'][cls_id]} | "
-        f"Left: {counts['left'][cls_id]} )")
+        f"( Left: {counts['left'][cls_id]} | "
+        f" Right: {counts['right'][cls_id]} )")
 
         cv2.putText(im0, text, (20, y_offset),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
