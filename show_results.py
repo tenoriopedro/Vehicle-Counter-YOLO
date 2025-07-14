@@ -1,5 +1,3 @@
-# Módulo para mostrar resultados dos modelos
-
 from IPython.display import HTML
 from base64 import b64encode
 import os
