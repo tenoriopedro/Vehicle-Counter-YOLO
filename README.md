@@ -1,5 +1,8 @@
 # Traffic Flow Counter with YOLOv8 🚗📈
 
+Este projeto utiliza o modelo YOLOv8 para realizar a **detecção, rastreamento e contagem de veículos** em vídeos de tráfego. Ele permite identificar diferentes classes de veículos (carros, motocicletas e caminhões) e contabilizá-los com base na direção de deslocamento (entrada e saída).
+
+
 ## 📌 Features
 
 - 📦 Vehicle detection and tracking using **YOLOv8**
