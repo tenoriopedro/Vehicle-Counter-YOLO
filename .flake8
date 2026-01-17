@@ -1,0 +1,4 @@
+[flake8]
+exclude = venv, __pychache__, .env
+
+select = E,F,W,N
