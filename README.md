@@ -1,60 +1,64 @@
-# Traffic Flow Counter with YOLOv8 🚗📈
+# Sistema de Contagem e Rastreamento de Veículos (YOLOv8)
 
-Este projeto utiliza o modelo YOLOv8 para realizar a **detecção, rastreamento e contagem de veículos** em vídeos de tráfego. Ele permite identificar diferentes classes de veículos (carros, motocicletas e caminhões) e contabilizá-los com base na direção de deslocamento (entrada e saída).
-
-
-## 📌 Features
-
-- 📦 Vehicle detection and tracking using **YOLOv8**
-- ➕ Counting cars, motorcycles, and trucks
-- ↔️ Separate counting by direction (inbound and outbound)
-- 📹 Generates video with overlaid results
-- ✅ Test video included for immediate use
+<p align="center">
+  <img src="https://github.com/tenoriopedro/Vehicle-Counter-YOLO/blob/main/video_counter_car.gif?raw=true" alt="Demonstração do Contador de Veículos YOLOv8" width="700"/>
+</p>
 
 ---
 
-## 🎥 Test Video Included
+## 🚀 Visão Geral
 
-The project includes a test video named `track_video_car01.mp4` inside the `test_files/` folder.  
-This allows you to test the system immediately without searching for external videos.
+Este projeto utiliza o **YOLOv8** para detetar, rastrear e **contar veículos** (carros, motas, camiões) em vídeos de tráfego.
+
+A lógica principal não se limita a detetar, mas aplica um rastreador (tracker) para identificar objetos únicos e **contabilizar os veículos de forma separada por direção**, com base em zonas de "entrada" e "saída" predefinidas no vídeo.
+
+### 🎯 Funcionalidades
+
+* **Deteção e Rastreamento:** Identifica e segue veículos usando YOLOv8.
+* **Contagem por Classe:** Contabiliza 3 classes: Carros, Motocicletas e Camiões.
+* **Contagem Direcional:** Regista a contagem separadamente para veículos que "entram" vs. "saem" da zona monitorizada.
+* **Resultado em Vídeo:** Gera um novo ficheiro de vídeo com os contadores, zonas e caixas de deteção sobrepostos.
 
 ---
 
-## 🚀 How to Download and Run
+### 🛠️ Stack Tecnológico
 
-### 1. Clone the repository:
+* **Python**
+* **YOLOv8 (Ultralytics)**
+* **OpenCV** (Processamento de vídeo, desenho de zonas)
+* **NumPy** (Cálculos de zona/contagem)
 
-```bash
-git clone https://github.com/tenoriopedro/Vehicle-Counter-YOLO.git
-cd Vehicle-Counter-YOLO
-```
+---
 
-### 2. Install dependencies (recommended to create and activate a virtual environment):
+### ⚙️ Como Executar (Localmente)
 
-```bash
+<details>
+  <summary>
+    <strong>[+] Clique para expandir</strong> (Instruções de instalação e execução)
+  </summary>
+  
+  <p>O projeto inclui um vídeo de teste (<code>track_video_car01.mp4</code> na pasta <code>test_files/</code>) para que possa ser executado imediatamente.</p>
 
-python -m venv venv
+  <h4>1. Clone o repositório</h4>
+  <pre><code>git clone https://github.com/tenoriopedro/Vehicle-Counter-YOLO.git
+cd Vehicle-Counter-YOLO</code></pre>
 
-.\venv\Scripts\activate.ps1
+  <h4>2. Crie e ative um ambiente virtual</h4>
+  <pre><code>python -m venv venv
+.\venv\Scripts\activate.ps1  # Windows
+source venv/bin/activate    # Linux/Mac</code></pre>
 
-pip install -r requirements.txt
+  <h4>3. Instale as dependências</h4>
+  <pre><code>pip install -r requirements.txt</code></pre>
 
-```
-
-### 3. Run the main video processing script:
-
-```bash
-
-python compile_video.py
-
-```
-
-### 4. Run the script to generate and display the final video:
-
-```bash
-
-python show_results.py
-
-```
-
-- The final output video will be saved in the `result_files/` folder as `video_countingCar_result01.mp4`
+  <h4>4. Execute os scripts</h4>
+  <p>O processo é feito em duas etapas:</p>
+  <ol>
+    <li><strong>Processar o vídeo</strong> (Aplica o YOLO e o tracker):</li>
+    <pre><code>python compile_video.py</code></pre>
+    <li><strong>Gerar o resultado final</strong> (Renderiza o vídeo processado):</li>
+    <pre><code>python show_results.py</code></pre>
+  </ol>
+  
+  <p>O vídeo final (<code>video_countingCar_result01.mp4</code>) será guardado na pasta <code>result_files/</code>.</p>
+</details>
