@@ -1,7 +1,7 @@
 # Sistema de Contagem e Rastreamento de Veículos (YOLOv8)
 
 <p align="center">
-  <img src="https://github.com/tenoriopedro/Vehicle-Counter-YOLO/blob/main/video_counter_car.gif?raw=true" alt="Demonstração do Contador de Veículos YOLOv8" width="700"/>
+  <img src="https://github.com/tenoriopedro/Vehicle-Counter-YOLO/tree/main/assets/video_counter_car.gif?raw=true" alt="Demonstração do Contador de Veículos YOLOv8" width="700"/>
 </p>
 
 ---
