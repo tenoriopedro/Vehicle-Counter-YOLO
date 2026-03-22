@@ -1,0 +1,6 @@
+outs:
+- md5: 436122a123ea83015809d15709910dd4
+  size: 71918631
+  isexec: true
+  hash: md5
+  path: track_video_vehicles.mp4
