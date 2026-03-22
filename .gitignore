@@ -1,6 +1,6 @@
-/compiled_files/
-/result_files/
-yolov8x.pt
+
+/data/processed
+
 
 # Default ignored files
 /shelf/
