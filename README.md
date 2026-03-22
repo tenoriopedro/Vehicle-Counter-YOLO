@@ -21,7 +21,9 @@ A lógica principal não se limita a detetar, mas aplica um rastreador (tracker)
 
 ---
 
-### 🛠️ Stack Tecnológico
+# DONT COPY THIS CODE. ITS UNDER RECONSTRUCTION
+
+<!-- ### 🛠️ Stack Tecnológico
 
 * **Python**
 * **YOLOv8 (Ultralytics)**
@@ -61,4 +63,4 @@ source venv/bin/activate    # Linux/Mac</code></pre>
   </ol>
   
   <p>O vídeo final (<code>video_countingCar_result01.mp4</code>) será guardado na pasta <code>result_files/</code>.</p>
-</details>
+</details> -->
