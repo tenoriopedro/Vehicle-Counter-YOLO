@@ -43,6 +43,8 @@ class TrafficCounter:
 
         self.processed_ids = set()
 
+        self.track_history: dict = {}
+
     def run(self, file_name: str = "object_output_result") -> None:
 
         cap = cv2.VideoCapture(str(self.video_source))
@@ -70,35 +72,42 @@ class TrafficCounter:
                     break
 
                 results = self.model.track(
-                    source=frame,
-                    persist=True,
-                    classes=self.class_to_count,
-                    conf=0.5
+                    source=frame, persist=True, classes=self.class_to_count, conf=0.5
                 )
 
                 for result in results:
-                    boxes = result.boxes.cpu().numpy() # type: ignore
+                    boxes = result.boxes.cpu().numpy()  # type: ignore
 
                     if boxes.id is None:
                         continue
 
                     print("VEHICLE:", boxes.id)
                     for track_id, xyxy, cls_id, conf in zip(
-                        boxes.id, boxes.xyxy, boxes.cls, boxes.conf, strict=False):
-
+                        boxes.id, boxes.xyxy, boxes.cls, boxes.conf, strict=False
+                    ):
                         track_id = int(track_id)
                         cls_id = int(cls_id)
                         conf = float(conf)
 
-                        print("ID:", track_id)
-                        print("XYXY:", xyxy)
-                        print("CLS:", cls_id)
-                        print("CONF:", conf)
+                        _x1, _y1, _x2, _y2 = xyxy
 
-                        current_time = frame_counter / fps
-                        print(f"Time: {current_time}")
+                        # Calculate bottom-center coordinate for intersection accuracy
+                        x, y = ((_x1 + _x2) / 2), _y2
+
+                        # Retrieve T - 1 spatial state to establish movement vector
+                        previous_point = self.track_history.get(track_id)
+
+                        self.track_history[track_id] = (x, y)
+
+                        if previous_point is not None:
+                            _x_old, _y_old = previous_point
+
+                        _current_time = frame_counter / fps
+
+                for key, value in self.track_history.items():
+                    print(f"ID: {key} | VALUE: {value}")
+
                 frame_counter += 1
-
 
         finally:
             ...
@@ -113,6 +122,7 @@ def run() -> None:
     video_file = root / "data/raw/track_video_vehicles.mp4"
     output_dir = root / "data/processed"
 
+    # 2=car, 3=motocycle, 7=truck
     classes_to_count = [2, 3, 7]
 
     line_points = [(20, 400), (1500, 400)]
