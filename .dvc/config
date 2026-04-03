@@ -1,4 +1,4 @@
 [core]
-    remote = myremote
-['remote "myremote"']
-    url = /tmp/dvcstore
+    remote = localstore
+['remote "localstore"']
+    url = /home/pstenorio/dvc_local_store
