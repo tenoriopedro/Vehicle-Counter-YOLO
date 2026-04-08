@@ -193,7 +193,7 @@ def run() -> None:
     # Root Project
     root = Path(__file__).parent.parent.parent
 
-    model_path = root / "models/yolov8n.pt"
+    model_path = root / "models/yolov8m.pt"
     video_file = root / "data/raw/track_video_vehicles.mp4"
     output_dir = root / "data/processed"
 
