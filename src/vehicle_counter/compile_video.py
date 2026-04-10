@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import cv2
+import pandas as pd
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes
 
@@ -13,7 +14,8 @@ class TrafficCounter:
         output_dir: Path,
         classes_to_count: list[int],
         line_points: list[tuple[int, int]],
-        conf: float = 0.1) -> None:
+        conf: float = 0.1,
+        file_name: str = "video_result") -> None:
 
         self.model_path = model_path
         self.video_source = video_source
@@ -21,6 +23,7 @@ class TrafficCounter:
         self.class_to_count = classes_to_count
         self.line_points = line_points
         self.conf = conf
+        self.file_name = file_name
 
         if not self.model_path.exists():
             msg = "Modelo não encontrado"
@@ -31,6 +34,9 @@ class TrafficCounter:
             raise FileNotFoundError(msg)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        total_files = len(list(self.output_dir.glob("*.parquet")))
+        self.batch_counter = total_files + 1
 
         # Initialize Model
         self.model = YOLO(self.model_path)
@@ -47,20 +53,22 @@ class TrafficCounter:
 
         self.track_history: dict = {}
 
+        self.flush_limit = 10
+
     def _register_crossings(
             self,
             boxes: Boxes,
             current_time: float) -> None:
 
         """
-    Extracts tracking data from YOLO boxes and handles vehicle state registration.
+        Extracts tracking data from YOLO boxes and handles vehicle state registration.
 
-    Iterates through all detected objects, updates their spatial history, and
-    records valid line crossings into the detected_data dictionary.
+        Iterates through all detected objects, updates their spatial history, and
+        records valid line crossings into the detected_data dictionary.
 
-    Args:
-        boxes (Boxes): Ultralytics Boxes object containing IDs and coordinates.
-        current_time (float): The current timestamp in seconds.
+        Args:
+            boxes (Boxes): Ultralytics Boxes object containing IDs and coordinates.
+            current_time (float): The current timestamp in seconds.
     """
 
         if boxes.id is None:
@@ -102,15 +110,15 @@ class TrafficCounter:
             y_bottom: int) -> int | None:
 
         """
-    Validates if a vehicle's movement vector has crossed the virtual line.
+        Validates if a vehicle's movement vector has crossed the virtual line.
 
-    Args:
-        previous_point (tuple[int, int] | None): The (x, y) coordinates
-        from the last frame.
-        y_bottom (int): The current vertical base coordinate.
+        Args:
+            previous_point (tuple[int, int] | None): The (x, y) coordinates
+            from the last frame.
+            y_bottom (int): The current vertical base coordinate.
 
-    Returns:
-        int | None: 0 for South, 1 for North, or None if no crossing occurred.
+        Returns:
+            int | None: 0 for South, 1 for North, or None if no crossing occurred.
     """
 
         if previous_point is None:
@@ -132,17 +140,47 @@ class TrafficCounter:
 
         return None
 
-    def start_tracking(self, file_name: str = "object_output_result") -> None:
+    def _flush_to_disk(self) -> None:
 
         """
-    Initiates the video capture and coordinates the frame-by-frame tracking pipeline.
+        Exports accumulated tracking data to disk and clears memory.
 
-    Args:
-        file_name (str): The base name for the output results file.
+        Converts the in-memory dictionary to a Pandas DataFrame
+        and saves it as a highly compressed Parquet file
+        using the PyArrow engine.
+        The filename is suffixed with a zero-padded batch number
+        (e.g., _001) to ensure sequential ordering.
+        After a successful export, all internal lists
+        are cleared to free up RAM for the next batch.
+        """
 
-    Raises:
-        ValueError: If the video metadata (FPS) cannot be correctly extracted.
-    """
+        if len(self.detected_data["timestamp"]) == 0:
+            return
+
+        df = pd.DataFrame(data=self.detected_data)
+
+        counter = str(self.batch_counter)
+
+        parquet_file = f"{self.file_name}_{counter.zfill(3)}.parquet"
+
+        save_parquet_file = self.output_dir / parquet_file
+
+        df.to_parquet(save_parquet_file, engine="pyarrow")
+
+        self.batch_counter += 1
+
+        for key in self.detected_data:
+            self.detected_data[key].clear()
+
+    def start_tracking(self) -> None:
+
+        """
+        Initiates the video capture and coordinates
+        the frame-by-frame tracking pipeline.
+
+        Raises:
+            ValueError: If the video metadata (FPS) cannot be correctly extracted.
+        """
 
         cap = cv2.VideoCapture(str(self.video_source))
 
@@ -182,10 +220,13 @@ class TrafficCounter:
 
                     self._register_crossings(boxes, current_time)
 
+                    if len(self.detected_data["timestamp"]) >= self.flush_limit:
+                        self._flush_to_disk()
+
                 frame_counter += 1
 
         finally:
-            print(self.detected_data)
+            self._flush_to_disk()
 
 
 def run() -> None:
@@ -203,11 +244,14 @@ def run() -> None:
     line_points = [(20, 400), (1500, 400)]
 
     traffic = TrafficCounter(
-        model_path, video_file, output_dir, classes_to_count, line_points
+        model_path,
+        video_file,
+        output_dir,
+        classes_to_count,
+        line_points,
     )
 
-    file_name_result = "video_result"
-    traffic.start_tracking(file_name_result)
+    traffic.start_tracking()
 
 
 if __name__ == "__main__":
