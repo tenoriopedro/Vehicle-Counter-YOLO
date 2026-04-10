@@ -19,21 +19,14 @@ dependencies = [
     "pandas",
 ]
 
-[project.optional-dependencies]
-# Dependências de desenvolvimento padrão
+[dependency-groups]
 dev = [
+    "dvc>=3.67.0",
     "ruff",
     "pyright",
     "pytest",
     "pytest-xdist",
-
-    "dvc",
 ]
-
-[project.scripts]
-
-# Compilação e Resultado
-vehicle_counter = "vehicle_counter.compile_video:run"
 
 # Build System
 [build-system]
@@ -96,8 +89,3 @@ executionEnvironments = [{ root = "src" }]
 addopts = "-s --color=yes --tb=short"
 pythonpath = ["src"]
 testpaths = ["tests"]
-
-[dependency-groups]
-dev = [
-    "dvc>=3.67.0",
-]
