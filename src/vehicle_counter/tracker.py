@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -16,6 +17,7 @@ class TrafficCounter:
         line_points: list[tuple[int, int]],
         conf: float = 0.1,
         file_name: str = "video_result") -> None:
+        self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         self.model_path = model_path
         self.video_source = video_source
@@ -161,7 +163,7 @@ class TrafficCounter:
 
         counter = str(self.batch_counter)
 
-        parquet_file = f"{self.file_name}_{counter.zfill(3)}.parquet"
+        parquet_file = f"{self.file_name}_{self.run_id}_{counter.zfill(3)}.parquet"
 
         save_parquet_file = self.output_dir / parquet_file
 
