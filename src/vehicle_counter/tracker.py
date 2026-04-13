@@ -16,8 +16,8 @@ class TrafficCounter:
         classes_to_count: list[int],
         line_points: list[tuple[int, int]],
         conf: float = 0.1,
-        file_name: str = "video_result") -> None:
-        self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name: str = "video_result",
+    ) -> None:
 
         self.model_path = model_path
         self.video_source = video_source
@@ -26,6 +26,7 @@ class TrafficCounter:
         self.line_points = line_points
         self.conf = conf
         self.file_name = file_name
+        self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if not self.model_path.exists():
             msg = "Modelo não encontrado"
@@ -57,11 +58,7 @@ class TrafficCounter:
 
         self.flush_limit = 10
 
-    def _register_crossings(
-            self,
-            boxes: Boxes,
-            current_time: float) -> None:
-
+    def _register_crossings(self, boxes: Boxes, current_time: float) -> None:
         """
         Extracts tracking data from YOLO boxes and handles vehicle state registration.
 
@@ -71,14 +68,14 @@ class TrafficCounter:
         Args:
             boxes (Boxes): Ultralytics Boxes object containing IDs and coordinates.
             current_time (float): The current timestamp in seconds.
-    """
+        """
 
         if boxes.id is None:
             return
 
         for track_id, xyxy, cls_id, conf in zip(
-            boxes.id, boxes.xyxy, boxes.cls, boxes.conf, strict=False):
-
+            boxes.id, boxes.xyxy, boxes.cls, boxes.conf, strict=False
+        ):
             track_id = int(track_id)
             cls_id = int(cls_id)
             conf = round(float(conf), 2)
@@ -95,9 +92,7 @@ class TrafficCounter:
 
             direction = self._check_intersection_point(previous_point, y_bottom)
 
-
-            if direction is not None and \
-            track_id not in self.processed_ids:
+            if direction is not None and track_id not in self.processed_ids:
                 self.processed_ids.add(track_id)
 
                 self.detected_data["timestamp"].append(current_time)
@@ -107,10 +102,8 @@ class TrafficCounter:
                 self.detected_data["direction"].append(direction)
 
     def _check_intersection_point(
-            self,
-            previous_point: tuple[int, int] | None,
-            y_bottom: int) -> int | None:
-
+        self, previous_point: tuple[int, int] | None, y_bottom: int
+    ) -> int | None:
         """
         Validates if a vehicle's movement vector has crossed the virtual line.
 
@@ -121,7 +114,7 @@ class TrafficCounter:
 
         Returns:
             int | None: 0 for South, 1 for North, or None if no crossing occurred.
-    """
+        """
 
         if previous_point is None:
             return None
@@ -132,18 +125,15 @@ class TrafficCounter:
 
         # South
         if _y_old < intersection_point and y_bottom >= intersection_point:
-
             return 0
 
         # North
         if _y_old > intersection_point and y_bottom <= intersection_point:
-
             return 1
 
         return None
 
     def _flush_to_disk(self) -> None:
-
         """
         Exports accumulated tracking data to disk and clears memory.
 
@@ -175,7 +165,6 @@ class TrafficCounter:
             self.detected_data[key].clear()
 
     def start_tracking(self) -> None:
-
         """
         Initiates the video capture and coordinates
         the frame-by-frame tracking pipeline.
@@ -212,7 +201,7 @@ class TrafficCounter:
                     source=frame,
                     persist=True,
                     classes=self.class_to_count,
-                    conf=self.conf
+                    conf=self.conf,
                 )
 
                 for result in results:

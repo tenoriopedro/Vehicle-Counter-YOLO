@@ -1,19 +1,21 @@
+import argparse
+import sys
 from pathlib import Path
 
-from src.vehicle_counter.tracker import TrafficCounter
+from vehicle_counter.tracker import TrafficCounter
 
 
-def run() -> None:
+def run(
+    model: Path,
+    video: Path,
+    output: Path,
+    cls: list[int],
+) -> None:
 
-    # Root Project
-    root = Path(__file__).parent
-
-    model_path = root / "models/yolov8m.pt"
-    video_file = root / "data/raw/track_video_vehicles.mp4"
-    output_dir = root / "data/processed"
-
-    # 2=car, 3=motocycle, 7=truck
-    classes_to_count = [2, 3, 7]
+    model_path = model
+    video_file = video
+    output_dir = output
+    classes_to_count = cls
 
     line_points = [(20, 400), (1500, 400)]
 
@@ -29,4 +31,53 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-    run()
+    parser = argparse.ArgumentParser(
+        description="""
+        Pipeline for bidirectional
+        vehicle extraction and counting using YOLO models.
+        """
+    )
+
+    parser.add_argument(
+        "--model",
+        type=Path,
+        help="Path to the YOLO model weights file (e.g., yolov8n.pt).",
+        required=True,
+    )
+    parser.add_argument(
+        "--video",
+        type=Path,
+        help="Path to the input video file to be processed.",
+        required=True,
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="""
+        Directory path to save the processed Parquet files.
+        (default: data/processed)
+        """,
+        default=Path("data/processed"),
+    )
+    parser.add_argument(
+        "--cls",
+        nargs="+",
+        type=int,
+        help="""
+        List of COCO dataset class IDs to track.
+        Default is 2 3 7 (2=car, 3=motorcycle, 7=truck).
+        """,
+        default=[2, 3, 7],
+    )
+
+    args = parser.parse_args()
+
+    if not args.model.exists():
+        msg = "Model Not Found"
+        sys.exit(msg)
+
+    if not args.video.exists():
+        msg = "Video Not Found"
+        sys.exit(msg)
+
+    result = run(args.model, args.video, args.output, args.cls)
