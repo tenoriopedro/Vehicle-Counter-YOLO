@@ -56,7 +56,66 @@ class TrafficCounter:
 
         self.track_history: dict = {}
 
+        self.last_seen_timestamp: dict[int, float] = {}
+        self.ttl_seconds: float = 2.0
+
         self.flush_limit = 10
+
+    def start_tracking(self) -> None:
+        """
+        Initiates the video capture and coordinates
+        the frame-by-frame tracking pipeline.
+
+        Raises:
+            ValueError: If the video metadata (FPS) cannot be correctly extracted.
+        """
+
+        cap = cv2.VideoCapture(str(self.video_source))
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+
+        if fps <= 0:
+            msg = (
+                "Falha ao extrair metadados do video. "
+                f"Obtido: FPS={fps}\n"
+                "Verifique a integridade da fonte de vídeo"
+            )
+            raise ValueError(msg)
+
+        frame_counter = 0
+        current_time = 0.0
+
+        try:
+            while True:
+                success, frame = cap.read()
+                if not success:
+                    print(
+                        "Video frame is empty "
+                        "or video processing has been successfully completed."
+                    )
+                    break
+
+                results = self.model.track(
+                    source=frame,
+                    persist=True,
+                    classes=self.class_to_count,
+                    conf=self.conf,
+                )
+
+                for result in results:
+                    boxes = result.boxes.cpu().numpy()  # type: ignore
+
+                    current_time = round(frame_counter / fps, 2)
+
+                    self._register_crossings(boxes, current_time)
+
+                    if len(self.detected_data["timestamp"]) >= self.flush_limit:
+                        self._flush_to_disk(current_time)
+
+                frame_counter += 1
+
+        finally:
+            self._flush_to_disk(current_time)
 
     def _register_crossings(self, boxes: Boxes, current_time: float) -> None:
         """
@@ -101,6 +160,41 @@ class TrafficCounter:
                 self.detected_data["confidence"].append(conf)
                 self.detected_data["direction"].append(direction)
 
+                self.last_seen_timestamp[track_id] = current_time
+
+    def _flush_to_disk(self, current_timestamp: float) -> None:
+        """
+        Exports accumulated tracking data to disk and clears memory.
+
+        Converts the in-memory dictionary to a Pandas DataFrame
+        and saves it as a highly compressed Parquet file
+        using the PyArrow engine.
+        The filename is suffixed with a zero-padded batch number
+        (e.g., _001) to ensure sequential ordering.
+        After a successful export, all internal lists
+        are cleared to free up RAM for the next batch.
+        """
+
+        if len(self.detected_data["timestamp"]) == 0:
+            return
+
+        df = pd.DataFrame(data=self.detected_data)
+
+        counter = str(self.batch_counter)
+
+        parquet_file = f"{self.file_name}_{self.run_id}_{counter.zfill(3)}.parquet"
+
+        save_parquet_file = self.output_dir / parquet_file
+
+        df.to_parquet(save_parquet_file, engine="pyarrow")
+
+        self.batch_counter += 1
+
+        for key in self.detected_data:
+            self.detected_data[key].clear()
+
+        self._cleanup_memory(current_timestamp)
+
     def _check_intersection_point(
         self, previous_point: tuple[int, int] | None, y_bottom: int
     ) -> int | None:
@@ -133,88 +227,15 @@ class TrafficCounter:
 
         return None
 
-    def _flush_to_disk(self) -> None:
-        """
-        Exports accumulated tracking data to disk and clears memory.
+    def _cleanup_memory(self, current_timestamp: float) -> None:
 
-        Converts the in-memory dictionary to a Pandas DataFrame
-        and saves it as a highly compressed Parquet file
-        using the PyArrow engine.
-        The filename is suffixed with a zero-padded batch number
-        (e.g., _001) to ensure sequential ordering.
-        After a successful export, all internal lists
-        are cleared to free up RAM for the next batch.
-        """
+        keys_to_delete = [
+            key
+            for key, last_seen in self.last_seen_timestamp.items()
+            if (current_timestamp - last_seen) > self.ttl_seconds
+        ]
 
-        if len(self.detected_data["timestamp"]) == 0:
-            return
-
-        df = pd.DataFrame(data=self.detected_data)
-
-        counter = str(self.batch_counter)
-
-        parquet_file = f"{self.file_name}_{self.run_id}_{counter.zfill(3)}.parquet"
-
-        save_parquet_file = self.output_dir / parquet_file
-
-        df.to_parquet(save_parquet_file, engine="pyarrow")
-
-        self.batch_counter += 1
-
-        for key in self.detected_data:
-            self.detected_data[key].clear()
-
-    def start_tracking(self) -> None:
-        """
-        Initiates the video capture and coordinates
-        the frame-by-frame tracking pipeline.
-
-        Raises:
-            ValueError: If the video metadata (FPS) cannot be correctly extracted.
-        """
-
-        cap = cv2.VideoCapture(str(self.video_source))
-
-        fps = cap.get(cv2.CAP_PROP_FPS)
-
-        if fps <= 0:
-            msg = (
-                "Falha ao extrair metadados do video. "
-                f"Obtido: FPS={fps}\n"
-                "Verifique a integridade da fonte de vídeo"
-            )
-            raise ValueError(msg)
-
-        frame_counter = 0
-
-        try:
-            while True:
-                success, frame = cap.read()
-                if not success:
-                    print(
-                        "Video frame is empty "
-                        "or video processing has been successfully completed."
-                    )
-                    break
-
-                results = self.model.track(
-                    source=frame,
-                    persist=True,
-                    classes=self.class_to_count,
-                    conf=self.conf,
-                )
-
-                for result in results:
-                    boxes = result.boxes.cpu().numpy()  # type: ignore
-
-                    current_time = round(frame_counter / fps, 2)
-
-                    self._register_crossings(boxes, current_time)
-
-                    if len(self.detected_data["timestamp"]) >= self.flush_limit:
-                        self._flush_to_disk()
-
-                frame_counter += 1
-
-        finally:
-            self._flush_to_disk()
+        for key in keys_to_delete:
+            self.last_seen_timestamp.pop(key, None)
+            self.track_history.pop(key, None)
+            self.processed_ids.discard(key)
