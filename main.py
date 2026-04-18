@@ -1,5 +1,7 @@
 import argparse
+import shutil
 import sys
+import uuid
 from pathlib import Path
 
 from vehicle_counter.tracker import TrafficCounter
@@ -19,15 +21,25 @@ def run(
 
     line_points = [(20, 400), (1500, 400)]
 
+    run_id = uuid.uuid4().hex[:8]
+
+    staging_dir = output_dir / f".tmp_{run_id}"
+
     traffic = TrafficCounter(
         model_path,
         video_file,
-        output_dir,
+        staging_dir,
         classes_to_count,
         line_points,
     )
+    try:
+        traffic.start_tracking()
 
-    traffic.start_tracking()
+        staging_dir.rename(output_dir / f"run_{run_id}")
+
+    except Exception as e:  # noqa: BLE001
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        sys.exit(f"Erro critico no processamento: {e}")
 
 
 if __name__ == "__main__":
