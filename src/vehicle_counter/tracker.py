@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 import pandas as pd
 from ultralytics import YOLO
-from ultralytics.engine.results import Boxes
+from ultralytics.engine.results import Boxes, Results
 
 
 class TrafficCounter:
@@ -17,7 +17,30 @@ class TrafficCounter:
         line_points: list[tuple[int, int]],
         conf: float = 0.1,
         file_name: str = "video_result",
+        *,
+        show_video_window: bool = False,
     ) -> None:
+        """
+        Initializes the TrafficCounter instance.
+
+        Args:
+            model_path (Path): Path to the compiled YOLO model weights (.pt).
+            video_source (Path): Path to the input video file.
+            output_dir (Path): Directory where the output Parquet files will be saved.
+            classes_to_count (list[int]): COCO class IDs to track (e.g., [2, 3, 7]).
+            line_points (list[tuple[int, int]]): Two coordinates defining the
+            virtual counting line.
+            conf (float, optional): Minimum confidence threshold
+            for YOLO detections. Defaults to 0.1.
+            file_name (str, optional): Base name for the output Parquet
+            files. Defaults to "video_result".
+            show_video_window (bool, optional): If True, renders the OpenCV
+            video feed with bounding boxes. Useful for debugging but
+            should be False for headless production. Defaults to False.
+
+        Raises:
+            FileNotFoundError: If the model or video file does not exist.
+        """
 
         self.model_path = model_path
         self.video_source = video_source
@@ -26,6 +49,7 @@ class TrafficCounter:
         self.line_points = line_points
         self.conf = conf
         self.file_name = file_name
+        self.show_video_window = show_video_window
         self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if not self.model_path.exists():
@@ -41,7 +65,6 @@ class TrafficCounter:
         total_files = len(list(self.output_dir.glob("*.parquet")))
         self.batch_counter = total_files + 1
 
-        # Initialize Model
         self.model = YOLO(self.model_path)
 
         self.detected_data = {
@@ -59,7 +82,7 @@ class TrafficCounter:
         self.last_seen_timestamp: dict[int, float] = {}
         self.ttl_seconds: float = 2.0
 
-        self.flush_limit = 10
+        self.flush_limit = 100
 
     def start_tracking(self) -> None:
         """
@@ -95,11 +118,17 @@ class TrafficCounter:
                     )
                     break
 
+                if frame_counter % 2 != 0:
+                    frame_counter += 1
+                    continue
+
                 results = self.model.track(
                     source=frame,
                     persist=True,
                     classes=self.class_to_count,
                     conf=self.conf,
+                    iou=0.45,
+                    imgsz=608,
                 )
 
                 for result in results:
@@ -114,8 +143,26 @@ class TrafficCounter:
 
                 frame_counter += 1
 
+                if self.show_video_window and self.show_video(results):
+                    break
+
         finally:
             self._flush_to_disk(current_time)
+
+    def show_video(self, results: list[Results]) -> bool:
+
+        annotated_frame = results[0].plot()
+
+        cv2.line(
+            annotated_frame, self.line_points[0], self.line_points[1], (0, 0, 255), 2
+        )
+
+        cv2.imshow("VIDEO SHOW", annotated_frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            print("Processamento interrompido pelo utilizador.")
+            return True
+
+        return False
 
     def _register_crossings(self, boxes: Boxes, current_time: float) -> None:
         """
