@@ -66,7 +66,7 @@ def test_flush_clears_memory(
     for key in counter.detected_data:
         counter.detected_data[key] = [1, 2, 3]
 
-    counter._flush_to_disk()
+    counter._flush_to_disk(0.0)
 
     assert len(counter.detected_data["timestamp"]) == 0
     assert counter.batch_counter == 2
