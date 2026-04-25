@@ -92,10 +92,11 @@ class TrafficCounter:
         Raises:
             ValueError: If the video metadata (FPS) cannot be correctly extracted.
         """
-
         cap = cv2.VideoCapture(str(self.video_source))
 
         fps = cap.get(cv2.CAP_PROP_FPS)
+
+        cap.release()
 
         if fps <= 0:
             msg = (
@@ -103,43 +104,34 @@ class TrafficCounter:
                 f"Obtido: FPS={fps}\n"
                 "Verifique a integridade da fonte de vídeo"
             )
+
             raise ValueError(msg)
 
+        results = self.model.track(
+            source=str(self.video_source),
+            stream=True,
+            persist=True,
+            classes=self.class_to_count,
+            conf=self.conf,
+            iou=0.45,
+            imgsz=608,
+            vid_stride=2,
+        )
+
+        effective_fps = fps / 2
         frame_counter = 0
         current_time = 0.0
 
         try:
-            while True:
-                success, frame = cap.read()
-                if not success:
-                    print(
-                        "Video frame is empty "
-                        "or video processing has been successfully completed."
-                    )
-                    break
+            for result in results:
+                boxes = result.boxes.cpu().numpy()  # type: ignore
 
-                if frame_counter % 2 != 0:
-                    frame_counter += 1
-                    continue
+                current_time = round(frame_counter / effective_fps, 2)
 
-                results = self.model.track(
-                    source=frame,
-                    persist=True,
-                    classes=self.class_to_count,
-                    conf=self.conf,
-                    iou=0.45,
-                    imgsz=608,
-                )
+                self._register_crossings(boxes, current_time)
 
-                for result in results:
-                    boxes = result.boxes.cpu().numpy()  # type: ignore
-
-                    current_time = round(frame_counter / fps, 2)
-
-                    self._register_crossings(boxes, current_time)
-
-                    if len(self.detected_data["timestamp"]) >= self.flush_limit:
-                        self._flush_to_disk(current_time)
+                if len(self.detected_data["timestamp"]) >= self.flush_limit:
+                    self._flush_to_disk(current_time)
 
                 frame_counter += 1
 
