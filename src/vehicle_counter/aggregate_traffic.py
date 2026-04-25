@@ -5,8 +5,6 @@ from typing import cast
 
 import pandas as pd
 
-output_path = Path("data/processed")
-
 
 def generate_report(data_dir: Path) -> int:
     """
@@ -23,7 +21,7 @@ def generate_report(data_dir: Path) -> int:
         print(f"Error: Directory {data_dir} does not exist.", file=sys.stderr)
         return 1
 
-    files = list(output_path.rglob("*.parquet"))
+    files = list(data_dir.rglob("*.parquet"))
 
     if not files:
         print(f"Error: No .parquet data found in {data_dir}", file=sys.stderr)
