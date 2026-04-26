@@ -82,7 +82,7 @@ class TrafficCounter:
         self.last_seen_timestamp: dict[int, float] = {}
         self.ttl_seconds: float = 2.0
 
-        self.flush_limit = 100
+        self.flush_limit = 1000
 
     def start_tracking(self) -> None:
         """
