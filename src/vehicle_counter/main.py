@@ -5,7 +5,57 @@ import time
 import uuid
 from pathlib import Path
 
+from pydantic import BaseModel, Field, StrictInt, ValidationError
+
 from vehicle_counter.tracker import TrafficCounter
+
+
+def load_and_validate_config(json_file: Path) -> list[tuple[int, int]]:
+    """
+    Loads and validates the intersection line JSON configuration file.
+
+    Uses Pydantic to ensure the file exists, has valid JSON syntax, and strictly
+    adheres to the geometric contract (an array of exactly two points, composed
+    of integers).
+
+    Args:
+        json_file (Path): The path to the JSON calibration file.
+
+    Returns:
+        list[tuple[int, int]]: A list containing exactly two tuples, representing
+        the (X, Y) coordinates of Point A and Point B.
+
+    Raises:
+        SystemExit: Aborts the process (exit code 1) and outputs an error to stderr
+        if the file is missing, invalid, or violates the required geometry.
+    """
+
+    class CalibrationConfig(BaseModel):
+        line_points: list[tuple[StrictInt, StrictInt]] = Field(
+            min_length=2, max_length=2
+        )
+
+    if not json_file.exists():
+        print(
+            f"Error: Missing calibration file '{json_file.name}'.\n"
+            "The intersection line coordinates are required before counting.\n"
+            f"Fix this by running: vehicle-calibrate --video "
+            f"{json_file.with_suffix('.mp4')}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        config = CalibrationConfig.model_validate_json(json_file.read_text())
+
+    except ValidationError as e:
+        print(
+            f"Error: Invalid configuration in {json_file.name}.\nDetails: {e}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    return config.line_points
 
 
 def run(
@@ -29,7 +79,10 @@ def run(
     output_dir = output
     classes_to_count = cls
 
-    line_points = [(2, 180), (639, 180)]
+    json_file = video_file.with_suffix(".json")
+
+    line_points = load_and_validate_config(json_file)
+
     run_id = uuid.uuid4().hex[:8]
 
     # Staging directory prevents corrupt outputs if the script crashes midway
@@ -87,7 +140,12 @@ def main() -> int:
     parser.add_argument(
         "--video",
         type=Path,
-        help="Path to the input video file to be processed.",
+        help="""
+        Path to the input video file to be processed.
+        Pre-calibration of the video is required
+        (execute 'vehicle-calibrate --video <path>'
+        to create the necessary .json file)
+        """,
         required=True,
     )
     parser.add_argument(

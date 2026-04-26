@@ -17,6 +17,7 @@ dependencies = [
     "lap==0.5.12",
     "pyarrow",
     "pandas",
+    "pydantic>=2.13.3",
 ]
 
 [dependency-groups]
