@@ -96,6 +96,7 @@ def run(
         staging_dir,
         classes_to_count,
         line_points,
+        show_video_window=True
     )
     try:
         traffic.start_tracking()

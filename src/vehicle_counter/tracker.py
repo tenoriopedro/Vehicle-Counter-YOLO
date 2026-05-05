@@ -115,7 +115,6 @@ class TrafficCounter:
             conf=self.conf,
             iou=0.45,
             imgsz=608,
-            vid_stride=2,
         )
 
         effective_fps = fps / 2
@@ -135,22 +134,25 @@ class TrafficCounter:
 
                 frame_counter += 1
 
-                if self.show_video_window and self.show_video(results):
+                if self.show_video_window and self.show_video(result):
                     break
 
         finally:
             self._flush_to_disk(current_time)
 
-    def show_video(self, results: list[Results]) -> bool:
+    def show_video(self, result: Results) -> bool:
 
-        annotated_frame = results[0].plot()
+        annotated_frame = result.plot()
 
         cv2.line(
             annotated_frame, self.line_points[0], self.line_points[1], (0, 0, 255), 2
         )
 
         cv2.imshow("VIDEO SHOW", annotated_frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == (ord("q"), 27) or cv2.getWindowProperty(
+            "VIDEO SHOW", cv2.WND_PROP_VISIBLE) < 1:
             print("Processamento interrompido pelo utilizador.")
             return True
 
