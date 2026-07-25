@@ -82,7 +82,7 @@ known-first-party = ["vehicle_counter"]
 
 # Tools: Pyright (Type Checker)
 [tool.pyright]
-typeCheckingMode = "standard"
+typeCheckingMode = "strict"
 pythonVersion = "3.11"
 include = ["src", "tests",]
 exclude = [
