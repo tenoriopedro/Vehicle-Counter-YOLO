@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from vehicle_counter.tracker import TrafficCounter
+from vehicle_counter.services.traffic_analyzer import TrafficCounter
 
 
 @patch("vehicle_counter.tracker.YOLO")
