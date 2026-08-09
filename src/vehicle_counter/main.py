@@ -5,124 +5,75 @@ import time
 import uuid
 from pathlib import Path
 
-from pydantic import BaseModel, Field, StrictInt, ValidationError
-
-from vehicle_counter.tracker import TrafficCounter
-
-
-def load_and_validate_config(json_file: Path) -> list[tuple[int, int]]:
-    """
-    Loads and validates the intersection line JSON configuration file.
-
-    Uses Pydantic to ensure the file exists, has valid JSON syntax, and strictly
-    adheres to the geometric contract (an array of exactly two points, composed
-    of integers).
-
-    Args:
-        json_file (Path): The path to the JSON calibration file.
-
-    Returns:
-        list[tuple[int, int]]: A list containing exactly two tuples, representing
-        the (X, Y) coordinates of Point A and Point B.
-
-    Raises:
-        SystemExit: Aborts the process (exit code 1) and outputs an error to stderr
-        if the file is missing, invalid, or violates the required geometry.
-    """
-
-    class CalibrationConfig(BaseModel):
-        line_points: list[tuple[StrictInt, StrictInt]] = Field(
-            min_length=2, max_length=2
-        )
-
-    if not json_file.exists():
-        print(
-            f"Error: Missing calibration file '{json_file.name}'.\n"
-            "The intersection line coordinates are required before counting.\n"
-            f"Fix this by running: vehicle-calibrate --video "
-            f"{json_file.with_suffix('.mp4')}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    try:
-        config = CalibrationConfig.model_validate_json(json_file.read_text())
-
-    except ValidationError as e:
-        print(
-            f"Error: Invalid configuration in {json_file.name}.\nDetails: {e}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    return config.line_points
+from vehicle_counter.io.config import load_config, save_config
+from vehicle_counter.io.sink import TelemetrySink
+from vehicle_counter.io.video import get_video_fps, load_frame
+from vehicle_counter.presentation.draw_lines import LineCalibrator
+from vehicle_counter.services.traffic_analyzer import TrafficCounter
+from vehicle_counter.vision.adapters import build_yolo_stream
 
 
 def run(
-    model: Path,
-    video: Path,
-    output: Path,
-    cls: list[int],
+    model_path: Path,
+    video_path: Path,
+    output_dir: Path,
+    classes_to_count: list[int],
 ) -> None:
     """
-    Orchestrates the setup, execution, and teardown of the tracking process.
-
-    Args:
-        model (Path): File path to the YOLO model.
-        video (Path): File path to the target video.
-        output (Path): Base directory for exported Parquet files.
-        cls (list[int]): List of YOLO class IDs to detect.
+    Orchestrates the calibration, inference, and telemetry storage pipeline.
     """
 
-    model_path = model
-    video_file = video
-    output_dir = output
-    classes_to_count = cls
+    json_file = video_path.with_suffix(".json")
+    fps = get_video_fps(video_path)
 
-    json_file = video_file.with_suffix(".json")
+    # Calibration Phase
+    line_points = load_config(json_file)
+    if line_points is None:
+        video_frame = load_frame(video_path)
+        line_points = LineCalibrator().run(video_frame)
 
-    line_points = load_and_validate_config(json_file)
+        if len(line_points) != 2:
+            sys.exit("Calibration aborted by user. Exiting")
 
+        save_config(json_file, line_points)
+
+    # Execution Setup (Staging Area)
     run_id = uuid.uuid4().hex[:8]
-
-    # Staging directory prevents corrupt outputs if the script crashes midway
     staging_dir = output_dir / f".tmp_{run_id}"
+    staging_dir.mkdir(parents=True, exist_ok=True)
 
+    final_dir = output_dir / f"run_{run_id}"
     start_time = time.time()
 
-    traffic = TrafficCounter(
-        model_path,
-        video_file,
-        staging_dir,
-        classes_to_count,
-        line_points,
-        show_video_window=True
-    )
+    # Processing Phase (Context Manager handles safe data flushing)
     try:
-        traffic.start_tracking()
+        frames_of_objects = build_yolo_stream(model_path, video_path, classes_to_count)
 
-        staging_dir.rename(output_dir / f"run_{run_id}")
+        # The sink now correctly points to the staging directory
+        with TelemetrySink(staging_dir) as sink:
+            traffic = TrafficCounter(frames_of_objects, fps, sink, line_points)
+            traffic.start_tracking()
 
-        end_time = time.time()
-        duration = end_time - start_time
+        # Atomic commit: Rename only if the processing block finishes without errors
+        staging_dir.rename(final_dir)
+
+        duration = time.time() - start_time
 
         print("-" * 30)
         print("PROCESSAMENTO FINALIZADO")
-        print(f"ID da Execução: run_{run_id}")
-        print(f"Tempo Total: {duration:.2f} segundos")
+        print(f"Execution ID: run_{run_id}")
+        print(f"Total Time: {duration:.2f} seconds")
         print("-" * 30)
 
-    except Exception as e:  # noqa: BLE001
-        shutil.rmtree(staging_dir, ignore_errors=True)
-        sys.exit(f"Erro critico no processamento: {e}")
+    except (KeyboardInterrupt, Exception):
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir, ignore_errors=True)
+        raise
 
 
 def main() -> int:
     """
     Parses command-line arguments and triggers the execution pipeline.
-
-    Returns:
-        int: System exit code (0 for success, 1 for failure).
     """
 
     parser = argparse.ArgumentParser(
@@ -133,12 +84,14 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "-m",
         "--model",
         type=Path,
         help="Path to the YOLO model weights file (e.g., yolov8n.pt).",
         required=True,
     )
     parser.add_argument(
+        "-v",
         "--video",
         type=Path,
         help="""
@@ -172,18 +125,20 @@ def main() -> int:
     args = parser.parse_args()
 
     if not args.model.exists():
-        print("Error: Model Not Found", file=sys.stderr)
+        print("Error: Model weights file not found", file=sys.stderr)
         return 1
 
     if not args.video.exists():
-        print("Error: Video Not Found", file=sys.stderr)
+        print("Error: Input video file not found", file=sys.stderr)
         return 1
 
+    # Let unexpected exceptions crash the program so the traceback is visible.
+    # We only catch known domain errors gracefully.
     try:
         run(args.model, args.video, args.output, args.cls)
 
-    except Exception as e:  # noqa: BLE001
-        print(f"Critical execution error: {e}", file=sys.stderr)
+    except KeyboardInterrupt:
+        print("\nProcess interrupted by user", file=sys.stderr)
         return 1
 
     else:

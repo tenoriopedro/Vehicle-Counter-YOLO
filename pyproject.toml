@@ -31,8 +31,8 @@ dev = [
 
 [project.scripts]
 vehicle-counter = "vehicle_counter.main:main"
-vehicle-report = "vehicle_counter.aggregate_traffic:main"
-vehicle-calibrate = "vehicle_counter.draw_lines:main"
+vehicle-report = "vehicle_counter.report:main"
+vehicle-calibrate = "vehicle_counter.calibrate:main"
 
 # Build System
 [build-system]
