@@ -2,8 +2,7 @@
 /data/processed
 scripts.txt
 z-ignored_files/
-
-
+.tmp_*/
 
 # Default ignored files
 /shelf/

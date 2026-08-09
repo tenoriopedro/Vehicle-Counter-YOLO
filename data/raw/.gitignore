@@ -1,2 +1,3 @@
-track_video_vehicles.mp4
-/videoplayback.mp4
+
+*.mp4
+*.json
