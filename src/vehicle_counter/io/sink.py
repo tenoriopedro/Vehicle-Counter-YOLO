@@ -19,7 +19,7 @@ class TelemetrySink:
 
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = data_dir
-        self.flush_limit: int = 50000
+        self.flush_limit: int = 1000
         self.event_list: list[VehicleEvent] = []
 
         self.schema = pa.schema(
