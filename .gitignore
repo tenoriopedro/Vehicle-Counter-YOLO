@@ -3,6 +3,7 @@
 scripts.txt
 z-ignored_files/
 .tmp_*/
+kernel.errors.txt
 
 # Default ignored files
 /shelf/

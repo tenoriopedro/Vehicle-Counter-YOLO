@@ -1179,6 +1179,30 @@ wheels = [
 ]
 
 [[package]]
+name = "openvino"
+version = "2026.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "openvino-telemetry" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/52/25/8236b2d5ab10805d3603ec50bb1dbd7d4d6fad9bf1531c98c031f5202cb2/openvino-2026.3.0-22451-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:6b883cda2ac9dc366881f4c62f039f880c2e6d5e3254a6621d0ba338561ed445", size = 31568962, upload-time = "2026-08-04T09:06:07.734Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/8e/b162407883ad51958d481c2af29d59e694caf4d8216b0c409c59294fd1aa/openvino-2026.3.0-22451-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:93e111164ccfd5c801edcfc3437683210837463bf57a2bd0518b940598664c2c", size = 57472600, upload-time = "2026-08-04T09:06:11.568Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/5b/6cb9709ced1c2f0a89886e70980278363b1240b50ece7cecf9021342761e/openvino-2026.3.0-22451-cp311-cp311-manylinux_2_35_aarch64.whl", hash = "sha256:e13cfe5fad386d615caa55592dc48be31099506eafea2cdb6dda06f2455bd248", size = 28768848, upload-time = "2026-08-04T09:06:14.926Z" },
+    { url = "https://files.pythonhosted.org/packages/03/f8/4970bc51a626c07c4d09a2c9395c13e99dfadca05b2c037fd612927f913a/openvino-2026.3.0-22451-cp311-cp311-win_amd64.whl", hash = "sha256:7b688e38cc129cc268253c17d29a70d57e6e3ef8fb477a211294d1506440da15", size = 75789537, upload-time = "2026-08-04T09:06:19.658Z" },
+]
+
+[[package]]
+name = "openvino-telemetry"
+version = "2025.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/8a/89d82f1a9d913fb266c2e6dc2f6030935db24b7152963a8db6c4f039787f/openvino_telemetry-2025.2.0.tar.gz", hash = "sha256:8bf8127218e51e99547bf38b8fb85a8b31c9bf96e6f3a82eb0b3b6a34155977c", size = 18894, upload-time = "2025-07-07T10:29:51.159Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/ac/5ab0ca0aa269ad3c73f7bfc3801b10e5f56f75a31bf68c1ae8bd51cf70a4/openvino_telemetry-2025.2.0-py3-none-any.whl", hash = "sha256:bcb667e83a44f202ecf4cfa49281715c6d7e21499daec04ff853b7f964833599", size = 25227, upload-time = "2025-07-07T10:29:50.189Z" },
+]
+
+[[package]]
 name = "orjson"
 version = "3.11.8"
 source = { registry = "https://pypi.org/simple" }
@@ -2030,6 +2054,7 @@ dependencies = [
     { name = "lap" },
     { name = "numpy" },
     { name = "opencv-python" },
+    { name = "openvino" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pydantic" },
@@ -2037,6 +2062,7 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
     { name = "ultralytics" },
+    { name = "yt-dlp" },
 ]
 
 [package.dev-dependencies]
@@ -2053,6 +2079,7 @@ requires-dist = [
     { name = "lap", specifier = "==0.5.12" },
     { name = "numpy", specifier = "<2.0.0" },
     { name = "opencv-python" },
+    { name = "openvino", specifier = ">=2026.3.0" },
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.13.3" },
@@ -2060,6 +2087,7 @@ requires-dist = [
     { name = "torch", specifier = "==2.3.1" },
     { name = "torchvision", specifier = "==0.18.1" },
     { name = "ultralytics" },
+    { name = "yt-dlp", specifier = ">=2026.7.4" },
 ]
 
 [package.metadata.requires-dev]
@@ -2128,6 +2156,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/93/22/b85eca6fa2ad9491af48c973e4c8cf6b103a73dbb271fe3346949449fca0/yarl-1.23.0-cp311-cp311-win_amd64.whl", hash = "sha256:bf49a3ae946a87083ef3a34c8f677ae4243f5b824bfc4c69672e72b3d6719d46", size = 87461, upload-time = "2026-03-01T22:05:10.145Z" },
     { url = "https://files.pythonhosted.org/packages/93/95/07e3553fe6f113e6864a20bdc53a78113cda3b9ced8784ee52a52c9f80d8/yarl-1.23.0-cp311-cp311-win_arm64.whl", hash = "sha256:b39cb32a6582750b6cc77bfb3c49c0f8760dc18dc96ec9fb55fbb0f04e08b928", size = 82336, upload-time = "2026-03-01T22:05:11.554Z" },
     { url = "https://files.pythonhosted.org/packages/69/68/c8739671f5699c7dc470580a4f821ef37c32c4cb0b047ce223a7f115757f/yarl-1.23.0-py3-none-any.whl", hash = "sha256:a2df6afe50dea8ae15fa34c9f824a3ee958d785fd5d089063d960bae1daa0a3f", size = 48288, upload-time = "2026-03-01T22:07:51.388Z" },
+]
+
+[[package]]
+name = "yt-dlp"
+version = "2026.7.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/c5/9972af4b472b0d55badf841ebafd2f98944cb0ae0f46e11d01f363ea5b91/yt_dlp-2026.7.4.tar.gz", hash = "sha256:b094813404f87a9dd2186f00815231df32e5fd8a5403be0f807b3bb2d21a4432", size = 3049326, upload-time = "2026-07-04T22:42:14.837Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/8a/cd4c9b02c10c563adfe78118310129641900e1cd6de888cfae2452072696/yt_dlp-2026.7.4-py3-none-any.whl", hash = "sha256:f11f2b11d5a8ac4059f9bdf29fa4407dc7c6bb00c5097e95ca22a7a9db518266", size = 3184705, upload-time = "2026-07-04T22:42:12.989Z" },
 ]
 
 [[package]]

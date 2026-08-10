@@ -18,6 +18,8 @@ dependencies = [
     "pyarrow",
     "pandas",
     "pydantic>=2.13.3",
+    "openvino>=2026.3.0",
+    "yt-dlp>=2026.7.4",
 ]
 
 [dependency-groups]
