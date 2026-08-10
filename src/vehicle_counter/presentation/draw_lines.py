@@ -61,6 +61,8 @@ class LineCalibrator:
 
         self.frame = frame.copy()
 
+        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+
         cv2.imshow(self.window_name, self.frame)
         cv2.setMouseCallback(self.window_name, self.handle_click)
 

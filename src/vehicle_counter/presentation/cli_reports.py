@@ -17,4 +17,4 @@ def print_traffic_report(report: TrafficReportDTO) -> None:
         print(f"{direction.label}: {count}")
 
     print("\n=== ANOMALIES ===")
-    print(f"Total Tracking Errors: {report.total_anomalies}")
+    print(f"Total Tracking Errors: {report.total_anomalies}\n")

@@ -28,7 +28,7 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    if not args.video_exists():
+    if not args.video.exists():
         print(f"Error: Video file '{args.video}' not found.", file=sys.stderr)
         return 1
 
