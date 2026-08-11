@@ -62,7 +62,10 @@ def run(
         print("-" * 30)
         print("PROCESSAMENTO FINALIZADO")
         print(f"Execution ID: run_{run_id}")
-        print(f"Total Time: {duration:.2f} seconds")
+        print(
+            "Execution Time: "
+            f"{time.strftime('%H hours %M minutes %S seconds', time.gmtime(duration))}"
+        )
         print("-" * 30)
 
     except (KeyboardInterrupt, Exception):
