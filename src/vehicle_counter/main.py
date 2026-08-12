@@ -5,47 +5,62 @@ import time
 import uuid
 from pathlib import Path
 
-from vehicle_counter.io.config import load_config, save_config
+from vehicle_counter.io.config import load_config
 from vehicle_counter.io.sink import TelemetrySink
-from vehicle_counter.io.video import get_video_fps, load_frame
-from vehicle_counter.presentation.draw_lines import LineCalibrator
+from vehicle_counter.io.video import get_video_fps
 from vehicle_counter.services.traffic_analyzer import TrafficCounter
 from vehicle_counter.vision.adapters import build_yolo_stream
+
+DATA_PATH = Path.cwd() / "data/raw"
 
 
 def run(
     model_path: Path,
-    video_path: Path,
+    context_name: Path,
     output_dir: Path,
     classes_to_count: list[int],
 ) -> None:
     """
-    Orchestrates the calibration, inference, and telemetry storage pipeline.
+    Orchestrates the inference and telemetry storage pipeline.
+    Expects a strict workspace structure: data/raw/<context>/<context>.[mp4|json]
     """
 
-    json_file = video_path.with_suffix(".json")
+    context_path = DATA_PATH / context_name
+    video_path = context_path / context_name.with_suffix(".mp4")
+    json_file = context_path / context_name.with_suffix(".json")
+
+    # Strict Physical Validation (Fail Fast)
+    if not video_path.is_file():
+        msg = f"Critical Error: Video file not found at {video_path}"
+        raise FileNotFoundError(msg)
+
+    if not json_file.is_file():
+        msg = (
+            f"Critical Error: Calibration matrix not found at {json_file}. "
+            f"Run 'uv run vehicle-calibrate --context {context_name}' first."
+        )
+        raise FileNotFoundError(msg)
+
+    # Dependency Loading
     fps = get_video_fps(video_path)
-
-    # Calibration Phase
     line_points = load_config(json_file)
-    if line_points is None:
-        video_frame = load_frame(video_path)
-        line_points = LineCalibrator().run(video_frame)
 
-        if len(line_points) != 2:
-            sys.exit("Calibration aborted by user. Exiting")
-
-        save_config(json_file, line_points)
+    if line_points is None or len(line_points) != 2:
+        msg = (
+            "Critical Error: "
+            f"Calibration file at {json_file} is corrupted or incomplete."
+        )
+        raise ValueError(msg)
 
     # Execution Setup (Staging Area)
     run_id = uuid.uuid4().hex[:8]
     staging_dir = output_dir / f".tmp_{run_id}"
     staging_dir.mkdir(parents=True, exist_ok=True)
-
     final_dir = output_dir / f"run_{run_id}"
+
     start_time = time.time()
 
-    # Processing Phase (Context Manager handles safe data flushing)
+    # Processing Phase
     try:
         frames_of_objects = build_yolo_stream(model_path, video_path, classes_to_count)
 
@@ -54,13 +69,12 @@ def run(
             traffic = TrafficCounter(frames_of_objects, fps, sink, line_points)
             traffic.start_tracking()
 
-        # Atomic commit: Rename only if the processing block finishes without errors
         staging_dir.rename(final_dir)
 
         duration = time.time() - start_time
 
         print("-" * 30)
-        print("PROCESSAMENTO FINALIZADO")
+        print("PROCESSING COMPLETED")
         print(f"Execution ID: run_{run_id}")
         print(
             "Execution Time: "
@@ -87,22 +101,20 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "-c",
+        "--context",
+        type=Path,
+        help="""
+        Name of the context folder inside data/raw/.
+        The system expects data/raw/<context>/<context>.mp4 and <context>.json to exist.
+        """,
+        required=True,
+    )
+    parser.add_argument(
         "-m",
         "--model",
         type=Path,
         help="Path to the YOLO model weights file (e.g., yolov8n.pt).",
-        required=True,
-    )
-    parser.add_argument(
-        "-v",
-        "--video",
-        type=Path,
-        help="""
-        Path to the input video file to be processed.
-        Pre-calibration of the video is required
-        (execute 'vehicle-calibrate --video <path>'
-        to create the necessary .json file)
-        """,
         required=True,
     )
     parser.add_argument(
@@ -131,21 +143,18 @@ def main() -> int:
         print("Error: Model weights file not found", file=sys.stderr)
         return 1
 
-    if not args.video.exists():
-        print("Error: Input video file not found", file=sys.stderr)
-        return 1
-
-    # Let unexpected exceptions crash the program so the traceback is visible.
-    # We only catch known domain errors gracefully.
     try:
-        run(args.model, args.video, args.output, args.cls)
+        run(args.model, args.context, args.output, args.cls)
 
     except KeyboardInterrupt:
         print("\nProcess interrupted by user", file=sys.stderr)
         return 1
+    except (FileNotFoundError, ValueError) as e:
+        # Graceful handling for known domain errors to avoid ugly stack traces for users
+        print(f"\n{e}", file=sys.stderr)
+        return 1
 
-    else:
-        return 0
+    return 0
 
 
 if __name__ == "__main__":

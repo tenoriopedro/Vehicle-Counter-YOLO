@@ -18,8 +18,7 @@ A arquitetura baseia-se numa separação estrita de responsabilidades:
 - Extração espacial e classificação estruturada (Carros, Motociclos, Autocarros, Camiões).
 - Validação de fluxo Norte/Sul através da transição do eixo Y transversal.
 - Gestão de memória térmica: ingestão direta em disco (_flush_ de lotes otimizado para compressão colunar PyArrow).
-- Interface de calibração espacial estática (OpenCV) para definição da barreira lógica.
-
+- Validação _Fail-Fast_: Contrato estrito de diretórios que impede a alocação de memória se a integridade dos ficheiros falhar.
 ---
 
 ## ⚙️ Arquitetura Alvo e Instalação
@@ -53,26 +52,36 @@ cd vehicle-counter
 uv sync
 ```
 
+## 📂 Contrato de Dados (Obrigatório)
+
+O sistema rejeita ficheiros avulsos para garantir a integridade da telemetria. Antes de executar qualquer comando, o vídeo fonte deve ser isolado num **Contexto** (uma pasta com o mesmo nome do vídeo) dentro do diretório `data/raw/`.
+
+**Exemplo de estrutura válida para o contexto `avenida_norte`:**
+```text
+data/raw/
+└── avenida_norte/
+    └── avenida_norte.mp4  <-- O vídeo original tem de assumir este nome exato
+```
+
 ## 🛠️ Fluxo de Execução (CLI)
 
 O pipeline divide-se em três fases distintas. Todos os comandos devem ser executados através do `uv run` para garantir o encapsulamento do ambiente.
 
 ### Fase 1: Calibração da Linha de Contagem
 
-Inicia a janela interativa redimensionável. Defina a linha delimitadora clicando em dois pontos da via e prima `q` para guardar a matriz.
+Inicia a janela interativa. O utilizador define a linha delimitadora clicando em dois pontos da via e prime `q` para guardar a matriz de ancoragem espacial.
 
 ```bash
-uv run vehicle-calibrate -v <caminho/para/o/video.mp4>
+uv run vehicle-calibrate --context <nome_do_contexto>
 ```
-
-_(Gera um ficheiro local `.json` com as coordenadas espaciais)_.
+*(Gera inequivocamente o ficheiro `<nome_do_contexto>.json` dentro da respetiva pasta).*
 
 ### Fase 2: Inferência Otimizada (GPU)
 
-Inicia o rastreamento direcionado para a infraestrutura OpenVINO. Os frames visuais são descartados, e a telemetria é cimentada no diretório `.tmp_`, sendo fundida em Parquet no término.
+Inicia o rastreamento direcionado para a infraestrutura de hardware. Os frames visuais são descartados. A telemetria é cimentada num diretório temporário `.tmp_` e fundida num ficheiro Parquet atómico apenas se não ocorrerem falhas.
 
 ```bash
-uv run vehicle-counter -m <caminho/para/yolov8n_openvino_model> -v <caminho/para/o/video.mp4> -o <caminho/para/diretorio_saida>
+uv run vehicle-counter --context <nome_do_contexto> -m <caminho/para/modelo>
 ```
 
 ### Fase 3: Extração Analítica
