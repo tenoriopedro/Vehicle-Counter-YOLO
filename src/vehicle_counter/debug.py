@@ -1,3 +1,9 @@
+"""
+Visual debugger module.
+Renders YOLO tracking bounding boxes and the spatial calibration line
+over the raw video frames to validate spatial alignment in real-time.
+"""
+
 import argparse
 import sys
 from pathlib import Path
@@ -14,6 +20,10 @@ def run(
     model_path: Path,
     context_name: Path,
 ) -> None:
+    """
+    Orchestrates the OpenCV rendering loop over the YOLO inference stream.
+    Validates physical inputs before allocating the model to memory.
+    """
 
     context_path = DATA_PATH / context_name
     video_path = context_path / context_name.with_suffix(".mp4")
@@ -65,20 +75,30 @@ def run(
 
         cv2.line(frame, line_points[0], line_points[1], (0, 0, 255), 2)
 
-        cv2.imshow("Video Test", frame)
+        cv2.imshow("Visual Debugger", frame)
         key = cv2.waitKey(1) & 0xFF
 
+        # Break loop on 'q' or 'ESC' key press
         if key in (ord("q"), 27):
             break
 
-        if cv2.getWindowProperty("Video Test", cv2.WND_PROP_VISIBLE) < 1:
+        # Break loop if the user forcibly closes the OS window
+        if cv2.getWindowProperty("Visual Debugger", cv2.WND_PROP_VISIBLE) < 1:
             break
 
     cv2.destroyAllWindows()
 
-def main() -> int:
 
-    parser = argparse.ArgumentParser(description="Teste Visual")
+def main() -> int:
+    """
+    Parses command-line arguments and triggers the visual debugger.
+    """
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Visual debugger for YOLO tracking and calibration line verification"
+        )
+    )
 
     parser.add_argument(
         "-c",
@@ -111,7 +131,7 @@ def main() -> int:
         print("\nProcess interrupted by user", file=sys.stderr)
         return 1
     except (FileNotFoundError, ValueError) as e:
-        # Graceful handling for known domain errors to avoid ugly stack traces for users
+        # Graceful handling for known domain errors
         print(f"\n{e}", file=sys.stderr)
         return 1
 
