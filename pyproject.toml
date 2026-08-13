@@ -35,6 +35,7 @@ dev = [
 vehicle-counter = "vehicle_counter.main:main"
 vehicle-report = "vehicle_counter.report:main"
 vehicle-calibrate = "vehicle_counter.calibrate:main"
+vehicle-debug = "vehicle_counter.debug:main"
 
 # Build System
 [build-system]
@@ -94,6 +95,9 @@ exclude = [
 venv = ".venv"
 venvPath = "."
 executionEnvironments = [{ root = "src" }]
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
 
 # Tools: Pytest
 [tool.pytest.ini_options]
