@@ -45,6 +45,28 @@ class TrafficCounter:
             self._register_crossings(detected_objects, current_time)
             self._cleanup_memory(current_time)
 
+    @staticmethod
+    def _ccw(a: tuple[int, int], b: tuple[int, int], c: tuple[int, int]) -> bool:
+        """
+        Evaluates if three points are listed in a counter-clockwise order.
+        """
+        return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0])
+
+    @classmethod
+    def _segments_intersect(
+        cls,
+        a: tuple[int, int],
+        b: tuple[int, int],
+        c: tuple[int, int],
+        d: tuple[int, int],
+    ) -> bool:
+        """
+        Returns True if line segment AB intersects line segment CD.
+        """
+        return cls._ccw(a, c, d) != cls._ccw(b, c, d) and cls._ccw(a, b, c) != cls._ccw(
+            a, b, d
+        )
+
     def _register_crossings(
         self, detected_objects: list[DetectedObject], current_time: float
     ) -> None:
@@ -54,14 +76,17 @@ class TrafficCounter:
 
             # Calculate bottom-center coordinate for intersection accuracy
             x_center, y_bottom = int((_x1 + _x2) / 2), int(_y2)
+            current_point = (x_center, y_bottom)
 
             self.last_seen_timestamp[obj.id] = current_time
 
             # Retrieve T - 1 spatial state to establish movement vector
             previous_point = self.track_history.get(obj.id)
-            self.track_history[obj.id] = (x_center, y_bottom)
+            self.track_history[obj.id] = current_point
 
-            direction_val = self._check_intersection_point(previous_point, y_bottom)
+            direction_val = self._check_intersection_point(
+                previous_point, current_point
+            )
 
             if direction_val is not None and obj.id not in self.processed_ids:
                 self.processed_ids.add(obj.id)
@@ -81,7 +106,7 @@ class TrafficCounter:
                 self.sink.add(event)
 
     def _check_intersection_point(
-        self, previous_point: tuple[int, int] | None, y_bottom: int
+        self, previous_point: tuple[int, int] | None, current_point: tuple[int, int]
     ) -> int | None:
         """
         Determines if a movement vector crossed the calibration line and its direction.
@@ -91,17 +116,24 @@ class TrafficCounter:
         if previous_point is None:
             return None
 
-        intersection_point = self.line_points[0][1]
+        # Segment A: Calibration line (Static Anchor)
+        line_a = self.line_points[0]
+        line_b = self.line_points[1]
 
-        _, _y_old = previous_point
+        # Segment B: Vehicle movement vector (T-1 to T)
+        vec_c = previous_point
+        vec_d = current_point
 
-        # Southbound logic
-        if _y_old < intersection_point and y_bottom >= intersection_point:
-            return 0
+        # Absolute mathematical proof of physical crossing
+        if self._segments_intersect(line_a, line_b, vec_c, vec_d):
+            _, y_old = previous_point
+            _, y_new = current_point
 
-        # Northbound logic
-        if _y_old > intersection_point and y_bottom <= intersection_point:
-            return 1
+            # Logical direction derived strictly from the movement vector Y-axis delta
+            if y_new > y_old:
+                return 0  # Southbound
+            if y_new < y_old:
+                return 1  # Northbound
 
         return None
 
