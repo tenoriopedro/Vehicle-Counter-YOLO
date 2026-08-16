@@ -6,6 +6,8 @@ from vehicle_counter.io.config import save_config
 from vehicle_counter.io.video import load_frame
 from vehicle_counter.presentation.draw_lines import LineCalibrator
 
+DATA_PATH = Path.cwd() / "data/raw"
+
 
 def main() -> int:
     """
@@ -19,24 +21,27 @@ def main() -> int:
         )
     )
     parser.add_argument(
-        "-v",
-        "--video",
+        "-c",
+        "--context",
         type=Path,
-        help="Path to the video file to calibrate",
+        help="Name of the context folder inside data/raw/",
         required=True,
     )
 
     args = parser.parse_args()
 
-    if not args.video.exists():
-        print(f"Error: Video file '{args.video}' not found.", file=sys.stderr)
+    context_path = DATA_PATH / args.context
+    video_path = context_path / args.context.with_suffix(".mp4")
+    json_file = context_path / args.context.with_suffix(".json")
+
+    # Strict Physical Validation (Fail Fast)
+    if not video_path.is_file():
+        print(f"Critical Error: Video file not found at {video_path}", file=sys.stderr)
         return 1
 
-    json_file = args.video.with_suffix(".json")
+    frame = load_frame(video_path)
 
-    frame = load_frame(args.video)
-
-    calibrator = LineCalibrator(window_name=f"Calibration: {args.video.name}")
+    calibrator = LineCalibrator(window_name=f"Calibration: {args.context.name}")
     line_points = calibrator.run(frame)
 
     if len(line_points) != 2:
