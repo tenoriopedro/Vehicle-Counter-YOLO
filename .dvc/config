@@ -1,4 +1,0 @@
-[core]
-    remote = localstore
-['remote "localstore"']
-    url = /home/pstenorio/dvc_local_store
