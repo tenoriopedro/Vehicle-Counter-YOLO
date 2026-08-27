@@ -1,0 +1,6 @@
+services:
+  kafka:
+    image: confluentinc/confluent-local:7.6.0
+    container_name: vehicle-kafka
+    ports:
+      - "9092:9092"
