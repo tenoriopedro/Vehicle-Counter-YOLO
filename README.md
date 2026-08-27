@@ -2,92 +2,97 @@
 
 ## 🚀 Visão Geral
 
-Este sistema atua como um produtor de telemetria de tráfego otimizado para ambientes de recursos limitados (_Edge Computing_). Em vez de focar na renderização visual, o sistema extrai dados de movimento em tempo real e escoa-os para um _Data Lake_ local sem saturação de memória.
+Este sistema atua como um produtor e consumidor de telemetria de tráfego, desenhado sob a topologia de um _Data Lake_ moderno. Em vez de escrever ficheiros estáticos localmente, o sistema extrai dados de movimento vetorial em tempo real, emite-os para um _Message Broker_ distribuído e ingere-os na nuvem em lotes otimizados
 
 A arquitetura baseia-se numa separação estrita de responsabilidades:
 
-| Camada                        | Tecnologia         | Responsabilidade                                                                         |
-| :---------------------------- | :----------------- | :--------------------------------------------------------------------------------------- |
-| **Visão (Produtor)**          | YOLOv8 + OpenVINO  | Rastreamento vetorial, desviando a carga matemática do CPU para a GPU integrada.         |
-| **Domínio (Contratos)**       | Pydantic           | Garantia de tipagem estrita de todos os eventos de tráfego, prevenindo estruturas órfãs. |
-| **I/O (Escoamento)**          | PyArrow            | _Buffer_ de memória com escrita direta em disco no formato colunar **Parquet**.          |
-| **Analytics (Processamento)** | Agregação em Lotes | Motor _out-of-core_ que analisa ficheiros em disco sem risco de falha de memória (OOM).  |
+| Camada                    | Tecnologia        | Responsabilidade                                                                         |
+| :------------------------ | :---------------- | :--------------------------------------------------------------------------------------- |
+| **Visão (Produtor)**      | YOLOv8 + OpenVINO | Rastreamento espacial e inferência, com escoamento assíncrono para a placa de rede.      |
+| **Rede (Broker)**         | Confluent Kafka   | Absorção de picos de tráfego e imobilização cronológica de eventos (Tópico).             |
+| **Ingestão (Consumidor)** | PyArrow + Boto3   | Subscrição de rede, acumulação na memória RAM e conversão colunar para a nuvem (AWS S3). |
+| **Domínio (Contratos)**   | Pydantic          | Garantia de tipagem estrita de todos os eventos JSON, prevenindo estruturas órfãs.       |
 
 ### 🎯 Funcionalidades
 
 - Extração espacial e classificação estruturada (Carros, Motociclos, Autocarros, Camiões).
-- Validação de fluxo Norte/Sul através da transição do eixo Y transversal.
-- Gestão de memória térmica: ingestão direta em disco (_flush_ de lotes otimizado para compressão colunar PyArrow).
-- Validação _Fail-Fast_: Contrato estrito de diretórios que impede a alocação de memória se a integridade dos ficheiros falhar.
+- Streaming assíncrono: O motor visual nunca bloqueia à espera de I/O, garantindo FPS máximo.
+- Gestão de rede resiliente: Retenção de eventos não entregues no _buffer_ C do Kafka em caso de falhas.
+- Arquitetura _Cloud-Native_: A agregação ocorre em memória com injeção direta no armazenamento de objetos (S3) no formato comprimido **Parquet**
+
 ---
 
 ## ⚙️ Arquitetura Alvo e Instalação
 
-Este projeto foi desenhado com foco em resiliência para **Edge Computing**, otimizado especificamente para hardware com recursos limitados (CPUs Intel sem gráfica dedicada). O código tira partido da aceleração OpenVINO para maximizar o rendimento termodinâmico em equipamentos modestos.
-
-O pipeline Python é encapsulado pelo [uv](https://github.com/astral-sh/uv), exigindo Python 3.11.9+
+O pipeline é encapsulado pelo [uv](https://github.com/astral-sh/uv), exigindo Python 3.11.9+
 
 ### 1. Perfil Principal: Linux / Hardware Intel (Recomendado)
 
-Para ativar a aceleração nativa na GPU integrada (Iris Xe / UHD) e evitar o estrangulamento do processador na descodificação H.264, o sistema operativo requer os seguintes _drivers_:
+Para ativar a aceleração nativa na GPU integrada e evitar o estrangulamento do processador na descodificação H.264:
 
 ```bash
 sudo apt update
 sudo apt install intel-opencl-icd ffmpeg
 ```
 
-### 2. Perfil Universal: Mac, Windows ou NVIDIA
+_(Se utiliza Mac, Windows ou gráfica NVIDIA, ignore este passo; o instalador `uv` encarrega-se do ambiente)._
 
-Se não opera num ecossistema Intel/Linux, ignore a instalação de dependências de sistema operativo acima. O instalador `uv` encarrega-se do ambiente Python.
+### 2. Sincronização do Ambiente
 
-**Nota Arquitetónica:** Nestes sistemas, o modelo `yolov8n_openvino_model` fornecido no comando da Fase 2 poderá reverter automaticamente para inferência via CPU puro. Para utilizar aceleração dedicada (CUDA ou MPS), deve fornecer um modelo nativo PyTorch (`.pt`) no argumento `--m`.
-
-### 3. Sincronização do Ambiente (Comum a todos)
-
-Executa a clonagem do repositório e a sincronização rigorosa do ambiente virtual num único fluxo:
+Executa a clonagem do repositório e a sincronização rigorosa do ambiente virtual:
 
 ```bash
-git clone [https://github.com/tenoriopedro/vehicle-counter-YOLO.git](https://github.com/tenoriopedro/vehicle-counter-YOLO.git)
+git clone https://github.com/tenoriopedro/vehicle-counter-YOLO.git
 cd vehicle-counter
 uv sync
 ```
 
+### 3. Cofre de Credenciais e Infraestrutura
+
+A escrita direta na nuvem exige autorização programática. Crie um ficheiro `.env` na raiz do projeto (nunca comitado) com a seguinte estrutura:
+
+```ini
+AWS_ACCESS_KEY_ID=sua_access_key
+AWS_SECRET_ACCESS_KEY=sua_secret_key
+AWS_DEFAULT_REGION=us-east-1
+S3_BUCKET_NAME=seu-bucket-de-telemetria
+```
+
 ## 📂 Contrato de Dados (Obrigatório)
 
-O sistema rejeita ficheiros avulsos para garantir a integridade da telemetria. Antes de executar qualquer comando, o vídeo fonte deve ser isolado num **Contexto** (uma pasta com o mesmo nome do vídeo) dentro do diretório `data/raw/`.
+O vídeo fonte deve ser isolado num **Contexto** dentro do diretório `data/raw/`. A estrutura não tolerará ficheiros avulsos.
 
-**Exemplo de estrutura válida para o contexto `avenida_norte`:**
 ```text
 data/raw/
 └── avenida_norte/
-    └── avenida_norte.mp4  <-- O vídeo original tem de assumir este nome exato
+    └── avenida_norte.mp4  <-- O vídeo tem de assumir este nome exato
 ```
 
-## 🛠️ Fluxo de Execução (CLI)
+## 🛠️ Fluxo de Execução (Microsserviços)
 
-O pipeline divide-se em três fases distintas. Todos os comandos devem ser executados através do `uv run` para garantir o encapsulamento do ambiente.
-
-### Fase 1: Calibração da Linha de Contagem
-
-Inicia a janela interativa. O utilizador define a linha delimitadora clicando em dois pontos da via e prime `q` para guardar a matriz de ancoragem espacial.
+A arquitetura exige a execução de processos isolados. Levante primeiro a infraestrutura de rede:
 
 ```bash
+docker-compose up -d
+```
+
+### Serviço A: Orquestrador Visual (O Produtor)
+
+Inicia a janela interativa de calibração espacial, seguida do rastreamento direcionado. A telemetria é emitida para a porta `9092` no tópico `vehicle-telemetry`.
+
+```bash
+# 1. Calibrar a via
 uv run vehicle-calibrate --context <nome_do_contexto>
-```
-*(Gera inequivocamente o ficheiro `<nome_do_contexto>.json` dentro da respetiva pasta).*
 
-### Fase 2: Inferência Otimizada (GPU)
-
-Inicia o rastreamento direcionado para a infraestrutura de hardware. Os frames visuais são descartados. A telemetria é cimentada num diretório temporário `.tmp_` e fundida num ficheiro Parquet atómico apenas se não ocorrerem falhas.
-
-```bash
+# 2. Iniciar a emissão (Streaming)
 uv run vehicle-counter --context <nome_do_contexto> -m <caminho/para/modelo>
 ```
 
-### Fase 3: Extração Analítica
+### Serviço B: Motor de Ingestão (O Consumidor)
 
-Invoca o motor de agregação para ler e contabilizar os tensores do ficheiro `.parquet`, reportando o caudal por classe e direção lógica.
+Num terminal paralelo, inicie o _daemon_ que escuta a placa de rede, agrupa os eventos em _micro-batches_ e converte-os em tabelas Parquet que são enviadas para o S3.
 
 ```bash
-uv run vehicle-report
+# (Comando provisório de desenvolvimento)
+uv run python src/vehicle_counter/consumer/kafka_to_s3.py
 ```
